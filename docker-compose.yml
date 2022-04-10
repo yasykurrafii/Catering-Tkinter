@@ -1,0 +1,30 @@
+version: "3"
+
+services:
+  db: 
+    image: mysql:8.0
+    volumes: 
+      - './mysql_dump:/var/lib/mysql'
+      # - './data:/data'
+    environment:
+      UPLOAD_LIMIT: 1G
+      MYSQL_ROOT_PASSWORD: "myr170500"
+      MYSQL_DATABASE: "catering_aby"
+      MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+    ports:
+      - '3306:3306'
+    container_name: catering_aby
+  
+
+  # app: 
+  #   image: mejaku-api:latest
+  #   # volumes: 
+  #   #   - './mysql_dump:/var/lib/mysql'
+  #   #   # - './data:/data'
+  #   ports:
+  #     - '80:80'
+  #   container_name: mejaku_api_container
+
+
+
+# Create node server container here
