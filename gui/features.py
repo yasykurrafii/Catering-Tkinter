@@ -9,6 +9,15 @@ import dataAPI
 
 from typing import Optional
 
+data_url = {
+            "dashboard" : "http://localhost:8000/pesanan/",
+            "anggaran" : "http://localhost:8000/pesanan/",
+            "riwayat" : "http://localhost:8000/",
+            "menu" : "http://localhost:8000/menu/",
+            "inventaris" : "http://localhost:8000/inventory/",
+            "perusahaan" : "http://localhost:8000/pesanan/",
+}
+
 # Generating Profile Frame
 class Profile(ttk.Frame):
 
@@ -159,7 +168,7 @@ class DetailAdminContent(ContentBase):
             assets.Text(self, i, 20, 30, menu_y, color = "#2B2A2A", weight = "bold")
             menu_y += 20
 
-    def build_detail_menu(self, item :list):
+    def build_detail_menu(self, item :list, data_full : dict):
         menu_y = 320
         assets.Text(self, "Nama Menu", 16, 30, 30, color = "#65666F")
         assets.Text(self, self.data[1], 20, 30, 70, color = "#2B2A2A", weight = "bold")
@@ -174,8 +183,7 @@ class DetailAdminContent(ContentBase):
         for i in item:
             assets.Text(self, i, 20, 30, menu_y, color = "#2B2A2A", weight = "bold")
             menu_y += 20
-
-        assets.ButtonToggle(self, 30, 503, 305, 41, "Sunting Menu", active = "edit", command = lambda x = None: FormEdit().change_page(x))
+        assets.ButtonToggle(self, 30, 503, 305, 41, "Sunting Menu", active = "edit", command = lambda x = None: FormEdit("edit menu", data_full))
 
     def build_detail_perusahaan(self):
         assets.Text(self, "Nama Perusahaan", 16, 30, 30, color = "#65666F")
@@ -190,6 +198,9 @@ class DetailAdminContent(ContentBase):
         assets.Text(self, "Shift", 16, 30, 302, color = "#65666F")
         assets.Text(self, self.data[3], 20, 30, 342, color = "#2B2A2A", weight = "bold")
 
+        assets.ButtonToggle(self, 30, 453, 305, 41, "Sunting Detail Perusahaan", active = "edit",command = lambda x = None: FormEdit().change_page(x))
+        assets.ButtonToggle(self, 30, 503, 305, 41, "Tambah Menu Hari ini", active = "active", command = lambda x = None: FormEdit().change_page(x))
+
     def build_detail_inventaris(self):
         assets.Text(self, "Nama Produk", 16, 30, 30, color = "#65666F")
         assets.Text(self, self.data[0], 20, 30, 60, color = "#2B2A2A", weight = "bold")
@@ -202,7 +213,8 @@ class DetailAdminContent(ContentBase):
 
         assets.Text(self, "Jumlah Produk", 16, 30, 254, color = "#65666F")
         assets.Text(self, self.data[3], 20, 30, 284, color = "#2B2A2A", weight = "bold")
-
+        
+        assets.ButtonToggle(self, 30, 453, 305, 41, "Sunting", active = "edit",command = lambda x = None: FormEdit().change_page(x))
 
 """
 End In Here
@@ -215,18 +227,135 @@ Form Edit Start Here
 
 class FormEdit(ContentBase):
 
-    def __init__(self, data = None):
+    def __init__(self, page_to, data = None):
         super().__init__()
         self.data = data
+        self.page = {"tambah menu" : self.menu_form,
+                    "edit menu" : self.menu_form
+                    }
+        self.title= {"tambah menu" : "Tambah Menu Baru",
+                    "edit menu" : "Sunting Menu"}
+        self.get_all = []
+        self.value = []
 
-    def change_page(self, edited = None):
-        self.__build_form_menu(edited)
+        self.page[page_to](self.title[page_to])
+        
+    def menu_form(self, title):
+        assets.Text(self, title, 28, 20, 37, weight = "bold", color = "#000000")
+        style = "filled"
+        if self.data is None:
+            self.data = {"name_menu" : "Nama Menu",
+                        "jumlah_porsi" : "Jumlah Porsi",
+                        "inventory" : [
+                            {"name_ingredient" : "Nama Bahan","jumlah_ingredient" : "Jumlah Bahan", "satuan_ingredient" : "kg"}
+                        ]
+                        }
+            style = "entry"
+        x, y = 30,120
+        for key, value in self.data.items():
+            if key == "inventory":
+                add_ing = AddingIngredient(self, value, style)
+                add_ing.build(30,250)
+                self.get_all.append(add_ing)
+                break
+            if "_" in key:
+                splitting = key.split("_")
+                key = " ".join(splitting)
+            assets.Text(self, key.title(), 16, x, y, color = "#65666F")
+            box = assets.TextBox(self, x + 150, y, 330, 42, value, style)
+            self.get_all.append(box)
+            y += 70
+        self.build_button_batal()
+    
+    def build_button_batal(self):
+        assets.ButtonToggle(self, 800, 120, 305, 41, "Menyimpan", active = "active", command = lambda x = None: self.get_value())
 
-    def __build_form_menu(self, menu = None):
-        if menu is not None:
-            assets.Text(self, menu,16, 20, 60, color = "#65666F")
+    def get_value(self):
+        idx = 0
+        for key, _ in self.data.items():
+            if key == 'inventory':
+                self.data[key] = self.get_all[-1].get_value()
+            else:
+                self.data[key] = self.get_all[idx].get()
+            idx += 1
+        print(self.data)
+
+class AddingIngredient:
+
+    def __init__(self, root, inventory, style):
+        self.root = root
+        self.inventory = inventory
+        self.style = style
+        self.value_dropdown = ["kg", "liter", "unit", "pcs"]
+        self.x = ""
+        self.y = ""
+
+        self.empty_data = {"name_ingredient" : "Nama Bahan","jumlah_ingredient" : "Jumlah Bahan", "satuan_ingredient" : "kg"}
+
+        self.text_dict = []
+        self.minus_button = None
+    
+    def build(self, x, y):
+        self.x = x + 150
+        self.y = y
+        assets.Text(self.root, "Bahan Menu", 16, x, y, color = "#65666F")
+        self.__build_button()
+        if len(self.inventory) > 1 :
+            self.__build_button(positive = False)
+        for i in self.inventory:
+            self.__build_text(i)   
+            self.y += 70
+        self.style = "entry"
+
+    def get_value(self):
+        value = []
+        for i in self.text_dict:
+            idx = 0
+            for key, _ in self.empty_data.items():
+                self.empty_data[key] = i[idx].get()
+                idx += 1
+            value.append(self.empty_data)
+        return value
+
+    def __build_button(self, item = None, positive = True):
+        if item is None:
+            item = self.empty_data
+        if positive:
+            button = assets.ButtonAdd(self.root, self.x+550,self.y, 100, 42)
+            button.add_command(lambda x: self.__add_button(item))
+            button.add()
         else:
-            assets.Text(self, "Testing",16, 20, 60, color = "#65666F")
+            button = assets.ButtonAdd(self.root, self.x+650,self.y - 70, 100, 42)
+            button.add_command(lambda x : self.__minus_button())
+            button.minus()
+            self.minus_button = button
+
+    def __build_text(self, item):
+        b = assets.TextBox(self.root, self.x + 340, self.y, 100, 42, "1", self.style)
+        a = assets.TextBox(self.root, self.x, self.y, 330, 42, item["name_ingredient"], self.style)
+        c = assets.Dropdown(self.root,self.x + 450, self.y, 85, 42, item["satuan_ingredient"], self.value_dropdown)
+        self.text_dict.append([a,b,c])
+        return [a,b,c]
+
+    def __add_button(self, item):
+        if self.minus_button is None:
+            self.__build_text(item)
+            self.__build_button(item, positive = False)
+        else:
+            self.__build_text(item)
+        self.y += 70
+    
+    def __minus_button(self):
+        for i in self.text_dict[-1]:
+            i.destroy()
+        self.text_dict.pop(-1)
+        if len(self.text_dict) < 2:
+            self.minus_button.destroy()
+            self.minus_button = None
+        self.y -= 70
+
+
+
 
 """
 Generate Content Start Here
@@ -319,8 +448,15 @@ class AdminContent(ContentBase):
         item_needed = ["id", "name_menu", "jumlah_porsi", "last_update"]
         self.table = assets.TableContent(self, 25, 100, 1057, 510, header, width, anchor, self.__on_click_treeview)
         self.__input_data_table(item_needed)
-        tambah_button = assets.ButtonToggle(self, 850, 37, 230, 41, "Tambah Menu", active = "active")
-        tambah_button['command'] = lambda x = "tambah_menu" : FormEdit().change_page(x)
+        Form = self.__form_menu()
+        tambah_button = assets.ButtonToggle(self, 772, 37, 307, 41, "Tambah Menu", active = "active")
+        tambah_button['command'] = lambda x = "tambah menu" : Form.change_page(x)
+
+        # menyimpan = assets.ButtonToggle(self, 772, 37, 307, 41, "Tambah Menu", active = "active")
+        # menyimpan['command'] = lambda : Form.get_value()
+
+        # batal = assets.ButtonToggle(self, 772, 37, 307, 41, "Tambah Menu", active = "inactive")
+        # tambah_button['command'] = lambda x = "tambah menu" : FormEdit(x)
 
     def build_perusahaan(self):
         assets.Text(self, "Perusahaan", 28, 20, 37, weight = "bold", color = "#000000")
@@ -330,6 +466,9 @@ class AdminContent(ContentBase):
         item_needed = ["id", "nama_PT", "alamat", "shift", "update", "jumlah_pesanan"]
         self.table = assets.TableContent(self, 25, 100, 1057, 510, header, width, anchor, self.__on_click_treeview)
         self.__input_data_table(item_needed)
+
+        tambah_button = assets.ButtonToggle(self, 772, 37, 307, 41, "Tambah Perusahaan", active = "active")
+        tambah_button['command'] = lambda x = "tambah_menu" : FormEdit().change_page(x)
 
     def build_inventory(self):
         assets.Text(self, "Inventaris", 28, 20, 37, weight = "bold", color = "#000000")
@@ -342,6 +481,9 @@ class AdminContent(ContentBase):
         item_needed = ["name_ingredient", "jenis_inventory", "category_inventory", "jumlah_inventory"]
         self.table = assets.TableContent(self, 25, 100, 1057, 510, header, width, anchor, self.__on_click_treeview)
         self.__input_data_table(item_needed)
+
+        tambah_button = assets.ButtonToggle(self, 772, 37, 307, 41, "Tambah Inventaris", active = "active")
+        tambah_button['command'] = lambda x = "tambah_menu" : FormEdit().change_page(x)
 
     def build_riwaya(self):
         assets.Text(self, "Riwayat", 28, 20, 37, weight = "bold", color = "#000000")
@@ -378,6 +520,7 @@ class AdminContent(ContentBase):
             self.table.insert("", END, values = value)
     
     def __filter_detail(self, item : DetailAdminContent):
+        global data_url
         if Menu.current_menu.lower() == 'dashboard':
             self.status = {item['id'] : item['status_pesanan'] for item in self.data}
             id_ = item.data[0]
@@ -386,12 +529,15 @@ class AdminContent(ContentBase):
         elif Menu.current_menu.lower() == "menu":
             items = []
             id_ = item.data[0] - 1
+            data_id = self.data[id_]
+            self.url += f"{id_ + 1}/"
+            self.fetching_data()
             data_needed = ["jumlah_ingredient", "satuan_ingredient"]
-            for ingredient in self.data[id_]['inventorys']:
+            for ingredient in data_id['inventorys']:
                 bahan_bahan = " ".join(str(ingredient[x]) for x in data_needed)
                 bahan_bahan += " " + ingredient["inventory"]["name_ingredient"]
                 items.append(bahan_bahan)
-            item.build_detail_menu(items)
+            item.build_detail_menu(items, self.data)
         elif Menu.current_menu.lower() == "perusahaan":
             item.build_detail_perusahaan()
         elif Menu.current_menu.lower() == "inventaris" :
@@ -407,6 +553,19 @@ class AdminContent(ContentBase):
         for widget in self.winfo_children():
             widget.destroy()
 
+    def __form_menu(self):
+        form = ""
+        def changes():
+            pass
+        def change_page(x):
+            form = FormEdit(x)
+        
+        def get_value():
+            form.get_value()
+
+        changes.change_page = change_page
+        changes.get_value = get_value
+        return changes
 """
 End of Generate Content
 """
@@ -474,14 +633,7 @@ class Menu(ttk.Frame):
         return on_click
 
     def __choosing_admin_content(self):
-        data_url = {
-            "dashboard" : "http://localhost:8000/pesanan/",
-            "anggaran" : "http://localhost:8000/pesanan/",
-            "riwayat" : "http://localhost:8000/",
-            "menu" : "http://localhost:8000/menu/",
-            "inventaris" : "http://localhost:8000/inventory/",
-            "perusahaan" : "http://localhost:8000/pesanan/"
-        }
+        global data_url
         content = AdminContent(data_url[Menu.current_menu.lower()])
         self.__build_content(content)
 

@@ -30,8 +30,8 @@ class Login(tk.Tk):
 
 
         # Button
-        assets.ButtonToggle(self,1208, 502, 420, 40, self.clicked_button, "Login", active = "active")
-
+        assets.ButtonToggle(self,1208, 502, 420, 40, "Login", active = "active", command = self.clicked_button)
+        
 
     def clicked_button(self):
         showinfo(title="Login", message="Login Successful")
